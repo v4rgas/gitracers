@@ -11,7 +11,7 @@ import {
 
 interface RaceTrackProps {
   raceData: RaceData;
-  targetPositions: Record<string, number>;
+  targetPositionsRef: { current: Record<string, number> };
   seed: string;
   resetKey?: number;
   onCanvasReady?: (canvas: HTMLCanvasElement | null) => void;
@@ -233,18 +233,17 @@ function drawHUD(
   ctx.fillRect(pad, barY, barW * progress, barH);
 }
 
-export function RaceTrack({ raceData, targetPositions, seed, resetKey, onCanvasReady, currentFrame, totalFrames }: RaceTrackProps) {
+export function RaceTrack({ raceData, targetPositionsRef, seed, resetKey, onCanvasReady, currentFrame, totalFrames }: RaceTrackProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<TrackData | null>(null);
   const sizeRef = useRef({ w: 0, h: 0 });
   const rafRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
+  const bgCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Smooth display positions that lerp toward targets
   const displayPositions = useRef<Record<string, number>>({});
-  const targetRef = useRef(targetPositions);
-  targetRef.current = targetPositions;
 
   // Frame info ref — updated every render, read in rAF loop
   const frameInfoRef = useRef({ frame: 0, total: 0 });
@@ -258,8 +257,8 @@ export function RaceTrack({ raceData, targetPositions, seed, resetKey, onCanvasR
   // Snap display positions to targets on reset so racers jump back to start
   useEffect(() => {
     const snapped: Record<string, number> = {};
-    for (const login of Object.keys(targetRef.current)) {
-      snapped[login] = targetRef.current[login] ?? 0;
+    for (const login of Object.keys(targetPositionsRef.current)) {
+      snapped[login] = targetPositionsRef.current[login] ?? 0;
     }
     displayPositions.current = snapped;
     displayOpacities.current = {};
@@ -271,11 +270,7 @@ export function RaceTrack({ raceData, targetPositions, seed, resetKey, onCanvasR
     (ctx: CanvasRenderingContext2D, w: number, h: number, track: TrackData) => {
       const scale = Math.min(1, Math.max(0.45, w / REFERENCE_WIDTH));
 
-      drawBackground(ctx, w, h, scale);
-
       if (raceData.frames.length === 0) return;
-
-      drawTrackSurface(ctx, track, scale);
 
       const trackWidth = BASE_TRACK_WIDTH * scale;
       const opacities = displayOpacities.current;
@@ -365,7 +360,7 @@ export function RaceTrack({ raceData, targetPositions, seed, resetKey, onCanvasR
       const factor = 1 - Math.exp(-LERP_SPEED * dt);
       const opacityFactor = 1 - Math.exp(-OPACITY_LERP_SPEED * dt);
       const laneFactor = 1 - Math.exp(-LANE_LERP_SPEED * dt);
-      const targets = targetRef.current;
+      const targets = targetPositionsRef.current;
 
       // Lerp positions
       for (const login of Object.keys(targets)) {
@@ -377,23 +372,24 @@ export function RaceTrack({ raceData, targetPositions, seed, resetKey, onCanvasR
       // Compute current top 10 by sorting targets descending
       const sorted = Object.entries(targets)
         .sort(([aLogin, aPos], [bLogin, bPos]) => bPos - aPos || aLogin.localeCompare(bLogin));
-      const top10 = new Set(sorted.slice(0, MAX_VISIBLE).map(([login]) => login));
+      const top10Map = new Map<string, number>();
+      for (let i = 0; i < Math.min(MAX_VISIBLE, sorted.length); i++) {
+        top10Map.set(sorted[i][0], i);
+      }
 
       // Lerp opacities
       for (const login of Object.keys(targets)) {
-        const targetOpacity = top10.has(login) ? 1 : 0;
+        const targetOpacity = top10Map.has(login) ? 1 : 0;
         const current = displayOpacities.current[login] ?? 0;
         displayOpacities.current[login] = current + (targetOpacity - current) * opacityFactor;
       }
 
-      // Compute target lanes based on rank among top 10
-      const top10Array = sorted.slice(0, MAX_VISIBLE).map(([login]) => login);
+      // Lerp lanes using rank lookup map (O(1) instead of indexOf)
       for (const login of Object.keys(targets)) {
-        const rankIdx = top10Array.indexOf(login);
-        if (rankIdx !== -1) {
-          const targetLane = rankIdx;
+        const rankIdx = top10Map.get(login);
+        if (rankIdx !== undefined) {
           const currentLane = displayLanes.current[login] ?? rankIdx;
-          displayLanes.current[login] = currentLane + (targetLane - currentLane) * laneFactor;
+          displayLanes.current[login] = currentLane + (rankIdx - currentLane) * laneFactor;
         }
       }
 
@@ -404,9 +400,22 @@ export function RaceTrack({ raceData, targetPositions, seed, resetKey, onCanvasR
       if (!trackRef.current || sizeRef.current.w !== w || sizeRef.current.h !== h) {
         trackRef.current = generateTrack(seed, w / 2, h / 2, w, h);
         sizeRef.current = { w, h };
+
+        // Cache static layers (background + track) to offscreen canvas
+        if (!bgCanvasRef.current) bgCanvasRef.current = document.createElement("canvas");
+        bgCanvasRef.current.width = canvas.width;
+        bgCanvasRef.current.height = canvas.height;
+        const bgCtx = bgCanvasRef.current.getContext("2d")!;
+        bgCtx.scale(dpr, dpr);
+        const bgScale = Math.min(1, Math.max(0.45, w / REFERENCE_WIDTH));
+        drawBackground(bgCtx, w, h, bgScale);
+        drawTrackSurface(bgCtx, trackRef.current, bgScale);
       }
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (bgCanvasRef.current) {
+        ctx.drawImage(bgCanvasRef.current, 0, 0);
+      }
       ctx.save();
       ctx.scale(dpr, dpr);
       draw(ctx, w, h, trackRef.current);

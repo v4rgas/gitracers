@@ -63,6 +63,8 @@ export function RaceView({ raceData, owner, repo }: RaceViewProps) {
   const speedRef = useRef(recommendedSpeed);
   const rafRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
+  const targetPositionsRef = useRef<Record<string, number>>({});
+  const lastUITimeRef = useRef(0);
 
   // Video export
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -160,8 +162,15 @@ export function RaceView({ raceData, owner, repo }: RaceViewProps) {
 
       const frame = raceData.frames[frameRef.current];
       if (frame) {
-        setTargetPositions(frame.positions);
-        setCurrentFrame(frameRef.current);
+        // Always update ref for canvas (zero React overhead)
+        targetPositionsRef.current = frame.positions;
+
+        // Throttle React state updates for UI components (~10fps)
+        if (time - lastUITimeRef.current >= 100 || !playingRef.current) {
+          lastUITimeRef.current = time;
+          setTargetPositions(frame.positions);
+          setCurrentFrame(frameRef.current);
+        }
       }
 
       rafRef.current = requestAnimationFrame(tick);
@@ -172,6 +181,7 @@ export function RaceView({ raceData, owner, repo }: RaceViewProps) {
   useEffect(() => {
     // Set initial positions
     if (raceData.frames.length > 0) {
+      targetPositionsRef.current = raceData.frames[0].positions;
       setTargetPositions(raceData.frames[0].positions);
     }
     rafRef.current = requestAnimationFrame(tick);
@@ -198,7 +208,9 @@ export function RaceView({ raceData, owner, repo }: RaceViewProps) {
     lastTimeRef.current = 0;
     playingRef.current = true;
     setCurrentFrame(0);
-    setTargetPositions(raceData.frames[0]?.positions ?? {});
+    const positions = raceData.frames[0]?.positions ?? {};
+    targetPositionsRef.current = positions;
+    setTargetPositions(positions);
     setIsPlaying(true);
     setRacePhase("racing");
     setResetKey((k) => k + 1);
@@ -227,7 +239,9 @@ export function RaceView({ raceData, owner, repo }: RaceViewProps) {
     speedRef.current = 1;
     setSpeed(1);
     setCurrentFrame(0);
-    setTargetPositions(raceData.frames[0]?.positions ?? {});
+    const positions = raceData.frames[0]?.positions ?? {};
+    targetPositionsRef.current = positions;
+    setTargetPositions(positions);
     setRacePhase("racing");
     setResetKey((k) => k + 1);
 
@@ -276,7 +290,7 @@ export function RaceView({ raceData, owner, repo }: RaceViewProps) {
           <div className="relative">
             <RaceTrack
               raceData={raceData}
-              targetPositions={targetPositions}
+              targetPositionsRef={targetPositionsRef}
               seed={`${owner}/${repo}`}
               resetKey={resetKey}
               onCanvasReady={handleCanvasReady}
