@@ -1,36 +1,73 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GitRacers
+
+**Watch your repository's contributors race around a track, powered by their commit history.**
+
+GitRacers turns any GitHub repository into an animated race. Each contributor is a racer whose speed is determined by their commits -- more impactful commits mean faster lap times. Sign in with GitHub, pick a repo, and watch the race unfold.
+
+![GitRacers Screenshot](screenshot.png)
+<!-- Replace screenshot.png with an actual screenshot or screen recording -->
+
+## Tech Stack
+
+- [Next.js](https://nextjs.org/) 16 (App Router, Server Actions)
+- [React](https://react.dev/) 19 with React Compiler
+- [Tailwind CSS](https://tailwindcss.com/) 4
+- [NextAuth.js](https://authjs.dev/) v5 (GitHub OAuth)
+- [Octokit](https://github.com/octokit/rest.js) (GitHub API / GraphQL)
+- HTML Canvas for real-time rendering
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18+
+- pnpm (or npm/yarn)
+- A [GitHub OAuth App](https://github.com/settings/developers) with the callback URL set to `http://localhost:3000/api/auth/callback/github`
+
+### Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/your-username/gitracers.git
+cd gitracers
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Copy the example environment file and fill in your values:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cp .env.local.example .env.local
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Required variables in `.env.local`:
 
-## Learn More
+| Variable             | Description                                          |
+| -------------------- | ---------------------------------------------------- |
+| `AUTH_SECRET`        | Random secret for NextAuth (`openssl rand -base64 33`) |
+| `AUTH_GITHUB_ID`     | OAuth App Client ID                                  |
+| `AUTH_GITHUB_SECRET` | OAuth App Client Secret                              |
 
-To learn more about Next.js, take a look at the following resources:
+### Run
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+pnpm dev
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Open [http://localhost:3000](http://localhost:3000).
 
-## Deploy on Vercel
+## How It Works
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. **Fetch commits** -- Up to 500 commits are pulled from the repository's default branch via the GitHub GraphQL API. Merge commits are excluded.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+2. **Score commits** -- Each commit is scored using a logarithmic formula based on lines changed: `1 + log2(linesChanged)`. This rewards consistent contributors without letting a single massive commit dominate.
+
+3. **Build race frames** -- The race engine replays commits chronologically, accumulating scores per contributor. Each frame maps every contributor to a track position combining a base time progression (40%) with a score-based boost (60%).
+
+4. **Generate a track** -- A unique procedural track is generated for each repository using a seeded PRNG. Random points are turned into a convex hull, displaced, smoothed with Catmull-Rom splines, and rendered on a canvas.
+
+5. **Animate** -- Racer avatars are drawn on the canvas and smoothly interpolated toward their target positions each frame. A live timing tower shows the top 10 standings in real time, and a commit ticker displays each commit as it plays.
+
+6. **Export** -- Races can be exported as video directly from the browser using the MediaRecorder API.
+
+## License
+
+[MIT](LICENSE)
