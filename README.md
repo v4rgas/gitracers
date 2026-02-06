@@ -4,9 +4,6 @@
 
 GitRacers turns any GitHub repository into an animated race. Each contributor is a racer whose speed is determined by their commits. More impactful commits mean faster lap times. Sign in with GitHub, pick a repo, and watch the race unfold.
 
-![GitRacers Screenshot](screenshot.png)
-<!-- Replace screenshot.png with an actual screenshot or screen recording -->
-
 ## Tech Stack
 
 - [Next.js](https://nextjs.org/) 16 (App Router, Server Actions)
