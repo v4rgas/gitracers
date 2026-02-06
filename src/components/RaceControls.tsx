@@ -1,12 +1,13 @@
 "use client";
 
-const SPEEDS = [0.5, 1, 2, 4];
+const BASE_SPEEDS = [0.5, 1, 2, 4];
 
 interface RaceControlsProps {
   isPlaying: boolean;
   speed: number;
   currentFrame: number;
   totalFrames: number;
+  recommendedSpeed: number;
   onPlayPause: () => void;
   onRestart: () => void;
   onSpeedChange: (speed: number) => void;
@@ -20,6 +21,7 @@ export function RaceControls({
   speed,
   currentFrame,
   totalFrames,
+  recommendedSpeed,
   onPlayPause,
   onRestart,
   onSpeedChange,
@@ -29,17 +31,19 @@ export function RaceControls({
 }: RaceControlsProps) {
   const progress = totalFrames > 0 ? (currentFrame / (totalFrames - 1)) * 100 : 0;
 
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="h-1 w-full overflow-hidden bg-rule/40">
-        <div
-          className={`h-full transition-[width] duration-100 ${
-            isRecording ? "animate-pulse bg-racing-red" : "bg-racing-red"
-          }`}
-          style={{ width: `${progress}%` }}
-        />
-      </div>
+  // Build speed options — include recommended if not already present
+  const speeds =
+    recommendedSpeed > 4 && !BASE_SPEEDS.includes(recommendedSpeed)
+      ? [...BASE_SPEEDS, recommendedSpeed]
+      : BASE_SPEEDS;
 
+  // Estimated duration at current speed
+  const estSeconds = totalFrames > 0 ? (totalFrames * 200) / speed / 1000 : 0;
+  const estMin = Math.floor(estSeconds / 60);
+  const estSec = Math.round(estSeconds % 60);
+
+  return (
+    <div>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <button
@@ -78,7 +82,7 @@ export function RaceControls({
         </div>
 
         <div className="flex items-center gap-1">
-          {SPEEDS.map((s) => (
+          {BASE_SPEEDS.map((s) => (
             <button
               key={s}
               onClick={() => onSpeedChange(s)}
@@ -92,6 +96,18 @@ export function RaceControls({
               {s}x
             </button>
           ))}
+          <span className="mx-1 text-rule">|</span>
+          <button
+            onClick={() => onSpeedChange(recommendedSpeed)}
+            disabled={isRecording}
+            className={`cursor-pointer border px-2.5 py-1 font-ui text-xs font-bold transition-colors ${
+              speed === recommendedSpeed
+                ? "border-racing-red bg-racing-red text-cream"
+                : "border-racing-red/40 text-racing-red hover:bg-racing-red/10"
+            } disabled:cursor-not-allowed disabled:opacity-40`}
+          >
+            Rec
+          </button>
         </div>
 
         <span className="font-ui text-xs uppercase tracking-wider text-ink-muted">
@@ -103,6 +119,10 @@ export function RaceControls({
           ) : (
             <>
               {currentFrame + 1} / {totalFrames}
+              <span className="ml-2 text-ink-muted/60">
+                {estMin > 0 ? `${estMin}m` : ""}
+                {estSec}s
+              </span>
             </>
           )}
         </span>

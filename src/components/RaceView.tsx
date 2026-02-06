@@ -4,11 +4,15 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { RaceControls } from "@/components/RaceControls";
 import { TimingTower } from "@/components/TimingTower";
+import { LiveCommentary } from "@/components/LiveCommentary";
 import { useVideoExport } from "@/lib/use-video-export";
 import type { RaceData } from "@/lib/types";
 
 const RaceTrack = dynamic(
-  () => import("@/components/RaceTrack").then((m) => ({ default: m.RaceTrack })),
+  () =>
+    import("@/components/RaceTrack").then((m) => ({
+      default: m.RaceTrack,
+    })),
   {
     ssr: false,
     loading: () => (
@@ -16,6 +20,8 @@ const RaceTrack = dynamic(
     ),
   }
 );
+
+type RacePhase = "idle" | "countdown" | "racing" | "finished";
 
 interface RaceViewProps {
   raceData: RaceData;
@@ -31,29 +37,40 @@ function formatMonth(dateStr: string): string {
 }
 
 export function RaceView({ raceData, owner, repo }: RaceViewProps) {
+  const totalFrames = raceData.frames.length;
+
+  // Recommended speed: target ≤1 min, but never slower than 1x
+  const speedFor1Min = (totalFrames * 200) / 60000;
+  const recommendedSpeed = Math.max(1, speedFor1Min);
+
+  const [racePhase, setRacePhase] = useState<RacePhase>("idle");
+  const [countdownNum, setCountdownNum] = useState(3);
   const [currentFrame, setCurrentFrame] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [speed, setSpeed] = useState(1);
-  const [isFinished, setIsFinished] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [speed, setSpeed] = useState(recommendedSpeed);
   const [resetKey, setResetKey] = useState(0);
 
+  const isFinished = racePhase === "finished";
+
   // Target positions from commit frames (what racers are heading toward)
-  const [targetPositions, setTargetPositions] = useState<Record<string, number>>({});
+  const [targetPositions, setTargetPositions] = useState<
+    Record<string, number>
+  >({});
 
   const frameRef = useRef(0);
   const accumRef = useRef(0);
-  const playingRef = useRef(true);
-  const speedRef = useRef(1);
+  const playingRef = useRef(false);
+  const speedRef = useRef(recommendedSpeed);
   const rafRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
 
   // Video export
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const { isRecording, startRecording, stopRecording, cancelRecording } = useVideoExport();
+  const { isRecording, startRecording, stopRecording, cancelRecording } =
+    useVideoExport();
   const isRecordingRef = useRef(false);
   isRecordingRef.current = isRecording;
 
-  const totalFrames = raceData.frames.length;
   const msPerFrame = 200;
 
   // Date range from commits
@@ -70,6 +87,39 @@ export function RaceView({ raceData, owner, repo }: RaceViewProps) {
   // Current frame scores for timing tower
   const currentScores = raceData.frames[currentFrame]?.scores ?? {};
 
+  // ── Countdown timer ──
+  useEffect(() => {
+    if (racePhase !== "countdown") return;
+
+    let cancelled = false;
+    setCountdownNum(3);
+
+    const timers = [
+      setTimeout(() => {
+        if (!cancelled) setCountdownNum(2);
+      }, 1000),
+      setTimeout(() => {
+        if (!cancelled) setCountdownNum(1);
+      }, 2000),
+      setTimeout(() => {
+        if (!cancelled) setCountdownNum(0);
+      }, 3000),
+      setTimeout(() => {
+        if (cancelled) return;
+        setRacePhase("racing");
+        playingRef.current = true;
+        setIsPlaying(true);
+        lastTimeRef.current = 0;
+      }, 3700),
+    ];
+
+    return () => {
+      cancelled = true;
+      timers.forEach(clearTimeout);
+    };
+  }, [racePhase]);
+
+  // ── Animation tick ──
   const tick = useCallback(
     (time: number) => {
       if (!playingRef.current) {
@@ -98,7 +148,7 @@ export function RaceView({ raceData, owner, repo }: RaceViewProps) {
         accumRef.current = 0;
         playingRef.current = false;
         setIsPlaying(false);
-        setIsFinished(true);
+        setRacePhase("finished");
 
         // Auto-stop recording after a short delay for LERP to settle
         if (isRecordingRef.current) {
@@ -128,6 +178,11 @@ export function RaceView({ raceData, owner, repo }: RaceViewProps) {
     return () => cancelAnimationFrame(rafRef.current);
   }, [tick, raceData.frames]);
 
+  // ── Handlers ──
+  const handleStartRace = useCallback(() => {
+    setRacePhase("countdown");
+  }, []);
+
   const handlePlayPause = useCallback(() => {
     setIsPlaying((prev) => {
       const next = !prev;
@@ -145,7 +200,7 @@ export function RaceView({ raceData, owner, repo }: RaceViewProps) {
     setCurrentFrame(0);
     setTargetPositions(raceData.frames[0]?.positions ?? {});
     setIsPlaying(true);
-    setIsFinished(false);
+    setRacePhase("racing");
     setResetKey((k) => k + 1);
   }, [raceData.frames]);
 
@@ -154,9 +209,12 @@ export function RaceView({ raceData, owner, repo }: RaceViewProps) {
     setSpeed(s);
   }, []);
 
-  const handleCanvasReady = useCallback((canvas: HTMLCanvasElement | null) => {
-    canvasRef.current = canvas;
-  }, []);
+  const handleCanvasReady = useCallback(
+    (canvas: HTMLCanvasElement | null) => {
+      canvasRef.current = canvas;
+    },
+    []
+  );
 
   const handleExportVideo = useCallback(() => {
     const canvas = canvasRef.current;
@@ -170,7 +228,7 @@ export function RaceView({ raceData, owner, repo }: RaceViewProps) {
     setSpeed(1);
     setCurrentFrame(0);
     setTargetPositions(raceData.frames[0]?.positions ?? {});
-    setIsFinished(false);
+    setRacePhase("racing");
     setResetKey((k) => k + 1);
 
     // Start recording, then play
@@ -189,11 +247,11 @@ export function RaceView({ raceData, owner, repo }: RaceViewProps) {
 
   return (
     <div className="space-y-4">
-      {/* Date range header */}
+      {/* Date range dateline */}
       {dateRange && (
         <div className="flex items-center gap-3">
           <div className="h-px flex-1 bg-rule/40" />
-          <p className="font-ui text-[10px] font-semibold uppercase tracking-[0.25em] text-ink-muted">
+          <p className="font-ui text-xs font-semibold uppercase tracking-[0.25em] text-ink-muted">
             {dateRange}
           </p>
           <div className="h-px flex-1 bg-rule/40" />
@@ -212,35 +270,79 @@ export function RaceView({ raceData, owner, repo }: RaceViewProps) {
           />
         </div>
 
-        {/* Track + controls */}
+        {/* Track + overlays + controls */}
         <div className="min-w-0 flex-1 space-y-3">
-          <RaceTrack
-            raceData={raceData}
-            targetPositions={targetPositions}
-            seed={`${owner}/${repo}`}
-            resetKey={resetKey}
-            onCanvasReady={handleCanvasReady}
-            currentFrame={currentFrame}
-            totalFrames={totalFrames}
-          />
+          {/* Track with overlays */}
+          <div className="relative">
+            <RaceTrack
+              raceData={raceData}
+              targetPositions={targetPositions}
+              seed={`${owner}/${repo}`}
+              resetKey={resetKey}
+              onCanvasReady={handleCanvasReady}
+              currentFrame={currentFrame}
+              totalFrames={totalFrames}
+            />
 
-          <RaceControls
-            isPlaying={isPlaying}
-            speed={speed}
-            currentFrame={currentFrame}
-            totalFrames={totalFrames}
-            onPlayPause={handlePlayPause}
-            onRestart={handleRestart}
-            onSpeedChange={handleSpeedChange}
-            isRecording={isRecording}
-            onExportVideo={handleExportVideo}
-            onCancelRecording={handleCancelRecording}
-          />
+            {/* ── Start overlay ── */}
+            {racePhase === "idle" && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-cream/75 backdrop-blur-[2px]">
+                <div className="border-2 border-ink p-[3px]">
+                  <button
+                    onClick={handleStartRace}
+                    className="cursor-pointer border border-ink/50 bg-cream px-10 py-6 text-center transition-colors hover:bg-paper"
+                  >
+                    <p className="font-ui text-xs font-bold uppercase tracking-[0.3em] text-ink-muted">
+                      &#9733; Lights Out &#9733;
+                    </p>
+                    <p className="mt-2 font-heading text-3xl font-black italic text-racing-red md:text-4xl">
+                      Start the Race
+                    </p>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── Countdown overlay ── */}
+            {racePhase === "countdown" && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-cream/50">
+                <div key={countdownNum} className="np-count select-none">
+                  {countdownNum > 0 ? (
+                    <span className="font-heading text-[10rem] font-black italic leading-none text-ink md:text-[14rem]">
+                      {countdownNum}
+                    </span>
+                  ) : (
+                    <span className="font-heading text-[6rem] font-black italic leading-none text-racing-red md:text-[8rem]">
+                      GO!
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Controls — visible once race has started */}
+          {(racePhase === "racing" || racePhase === "finished") && (
+            <RaceControls
+              isPlaying={isPlaying}
+              speed={speed}
+              currentFrame={currentFrame}
+              totalFrames={totalFrames}
+              recommendedSpeed={recommendedSpeed}
+              onPlayPause={handlePlayPause}
+              onRestart={handleRestart}
+              onSpeedChange={handleSpeedChange}
+              isRecording={isRecording}
+              onExportVideo={handleExportVideo}
+              onCancelRecording={handleCancelRecording}
+            />
+          )}
         </div>
       </div>
 
-      {/* Commit ticker */}
-      {currentCommit ? (
+      {/* Commit ticker — telegraph wire style */}
+      {(racePhase === "racing" || racePhase === "finished") &&
+      currentCommit ? (
         <div className="border-l-[3px] border-racing-red bg-paper py-3 pl-4 pr-4">
           <div className="flex items-center gap-3">
             <span className="font-ui text-sm font-bold uppercase text-ink">
@@ -256,52 +358,61 @@ export function RaceView({ raceData, owner, repo }: RaceViewProps) {
         </div>
       ) : null}
 
-      {/* Final standings — shown on all screen sizes when finished */}
+      {/* Live Commentary feed */}
+      <LiveCommentary
+        raceData={raceData}
+        currentFrame={currentFrame}
+        racePhase={racePhase}
+      />
+
+      {/* Final standings — newspaper results table */}
       {isFinished ? (
-        <div className="border-2 border-ink/15 bg-paper p-6">
-          <div className="mb-4 border-b border-rule pb-3">
-            <p className="font-ui text-[10px] font-semibold uppercase tracking-[0.25em] text-ink-muted">
-              Final Results
-            </p>
-            <h2 className="font-heading text-2xl font-bold italic text-ink">
-              Race Complete
-            </h2>
-          </div>
-          <div className="space-y-1">
-            {raceData.contributors.slice(0, 10).map((c, i) => (
-              <div
-                key={c.login}
-                className={`flex items-center justify-between py-1.5 ${
-                  i < 3 ? "border-b border-rule/40" : ""
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`font-ui text-sm font-bold tabular-nums ${
-                      i === 0
-                        ? "text-gold-medal"
-                        : i === 1
-                          ? "text-silver-medal"
-                          : i === 2
-                            ? "text-bronze-medal"
-                            : "text-ink-muted"
-                    }`}
-                  >
-                    #{i + 1}
-                  </span>
-                  <span
-                    className={`font-ui text-sm ${
-                      i < 3 ? "font-bold text-ink" : "text-ink-light"
-                    }`}
-                  >
-                    {c.login}
+        <div className="border-2 border-ink p-[3px]">
+          <div className="border border-ink/50 bg-paper p-6">
+            <div className="mb-4 border-b-[3px] border-ink pb-3">
+              <p className="font-ui text-xs font-semibold uppercase tracking-[0.25em] text-ink-muted">
+                Final Classification
+              </p>
+              <h2 className="font-heading text-2xl font-black italic text-ink">
+                Race Complete
+              </h2>
+            </div>
+            <div className="space-y-1">
+              {raceData.contributors.slice(0, 10).map((c, i) => (
+                <div
+                  key={c.login}
+                  className={`flex items-center justify-between py-1.5 ${
+                    i < 3 ? "border-b border-rule/40" : ""
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`font-ui text-sm font-bold tabular-nums ${
+                        i === 0
+                          ? "text-gold-medal"
+                          : i === 1
+                            ? "text-silver-medal"
+                            : i === 2
+                              ? "text-bronze-medal"
+                              : "text-ink-muted"
+                      }`}
+                    >
+                      #{i + 1}
+                    </span>
+                    <span
+                      className={`font-ui text-sm ${
+                        i < 3 ? "font-bold text-ink" : "text-ink-light"
+                      }`}
+                    >
+                      {c.login}
+                    </span>
+                  </div>
+                  <span className="font-ui text-sm tabular-nums text-ink-muted">
+                    {c.totalScore.toFixed(1)} pts
                   </span>
                 </div>
-                <span className="font-ui text-sm tabular-nums text-ink-muted">
-                  {c.totalScore.toFixed(1)} pts
-                </span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       ) : null}

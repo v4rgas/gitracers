@@ -1,7 +1,7 @@
 import { Suspense } from "react";
-import { getRaceData } from "@/actions/commits";
-import { RaceView } from "@/components/RaceView";
+import { checkRace } from "@/actions/commits";
 import Link from "next/link";
+import { RacePageClient } from "./client";
 
 function RaceSkeleton() {
   return (
@@ -14,25 +14,48 @@ function RaceSkeleton() {
 }
 
 async function RaceLoader({ owner, repo }: { owner: string; repo: string }) {
-  const raceData = await getRaceData(owner, repo);
+  const result = await checkRace(owner, repo);
 
-  if (raceData.frames.length === 0) {
+  if (result.exists) {
+    if (result.raceData.frames.length === 0) {
+      return (
+        <div className="flex min-h-[50vh] flex-col items-center justify-center">
+          <div className="border-2 border-ink p-[3px]">
+            <div className="border border-ink/50 px-8 py-8 text-center">
+              <p className="font-ui text-xs font-bold uppercase tracking-[0.25em] text-ink-muted">
+                &#9733; No Results &#9733;
+              </p>
+              <div className="my-3 h-px bg-ink/15" />
+              <p className="font-heading text-xl italic text-ink">
+                No commits found for this repository.
+              </p>
+              <Link
+                href="/repos"
+                className="mt-4 inline-block font-ui text-sm font-semibold uppercase tracking-wider text-racing-red hover:underline"
+              >
+                &larr; Back to Programme
+              </Link>
+            </div>
+          </div>
+        </div>
+      );
+    }
     return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center">
-        <p className="font-heading text-xl italic text-ink-muted">
-          No commits found for this repository.
-        </p>
-        <Link
-          href="/repos"
-          className="mt-4 font-ui text-sm font-semibold uppercase tracking-wider text-racing-red hover:underline"
-        >
-          Pick another repo
-        </Link>
-      </div>
+      <RacePageClient
+        owner={owner}
+        repo={repo}
+        initialRaceData={result.raceData}
+      />
     );
   }
 
-  return <RaceView raceData={raceData} owner={owner} repo={repo} />;
+  return (
+    <RacePageClient
+      owner={owner}
+      repo={repo}
+      isPublicRepo={result.isPublicRepo}
+    />
+  );
 }
 
 export async function generateMetadata({
@@ -41,7 +64,7 @@ export async function generateMetadata({
   params: Promise<{ owner: string; repo: string }>;
 }) {
   const { owner, repo } = await params;
-  return { title: `${owner}/${repo} — GitRacers` };
+  return { title: `${owner}/${repo} \u2014 The Gran Git Races` };
 }
 
 export default async function RacePage({
@@ -52,24 +75,42 @@ export default async function RacePage({
   const { owner, repo } = await params;
 
   return (
-    <div className="min-h-screen bg-cream px-4 py-8">
-      <div className="mx-auto max-w-7xl">
-        {/* Red stripe */}
-        <div className="mb-6 h-0.5 bg-racing-red" />
+    <div className="min-h-screen bg-cream">
+      {/* Racing stripe */}
+      <div className="h-1 bg-racing-red" />
 
-        <div className="mb-6 border-b-2 border-ink/15 pb-4">
-          <Link
-            href="/repos"
-            className="font-ui text-[10px] font-semibold uppercase tracking-[0.2em] text-ink-muted transition-colors hover:text-racing-red"
-          >
-            &larr; Back to repos
-          </Link>
-          <h1 className="mt-1 font-heading text-3xl font-bold italic text-ink">
-            {owner}
-            <span className="text-ink-muted/60">/</span>
-            {repo}
-          </h1>
-        </div>
+      <div className="mx-auto max-w-7xl px-4 pt-6 pb-12">
+        {/* Mini masthead */}
+        <header className="mb-6">
+          <div className="border-t-[3px] border-ink" />
+          <div className="mt-[3px] border-t border-ink/50" />
+
+          <div className="flex items-center justify-between py-3">
+            <Link
+              href="/"
+              className="font-heading text-lg font-black italic tracking-tight text-ink transition-colors hover:text-racing-red"
+            >
+              The Gran <span className="text-racing-red">Git Races</span>
+            </Link>
+            <Link
+              href="/repos"
+              className="font-ui text-xs font-semibold uppercase tracking-[0.2em] text-ink-muted transition-colors hover:text-racing-red"
+            >
+              &larr; Back to Programme
+            </Link>
+          </div>
+
+          <div className="border-t border-ink/15" />
+
+          {/* Race headline */}
+          <div className="mt-4 border-b-[3px] border-ink pb-3">
+            <h1 className="font-heading text-3xl font-black italic text-ink md:text-4xl">
+              {owner}
+              <span className="text-ink-muted/40">/</span>
+              <span className="text-racing-red">{repo}</span>
+            </h1>
+          </div>
+        </header>
 
         <Suspense fallback={<RaceSkeleton />}>
           <RaceLoader owner={owner} repo={repo} />

@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 
-export default auth((req) => {
+export const proxy = auth((req) => {
   const isLoggedIn = !!req.auth;
   const isProtected =
     req.nextUrl.pathname.startsWith("/repos") ||

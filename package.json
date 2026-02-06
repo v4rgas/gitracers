@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@octokit/rest": "^22.0.1",
+    "@supabase/supabase-js": "^2.95.2",
     "next": "16.1.6",
     "next-auth": "5.0.0-beta.30",
     "react": "19.2.3",

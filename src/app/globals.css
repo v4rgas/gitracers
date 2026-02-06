@@ -37,22 +37,56 @@ body::after {
   background-size: 200px 200px;
 }
 
-@keyframes fade-up {
-  from {
+/* ══════════════════════════════════════
+   Newspaper front-page utilities
+   ══════════════════════════════════════ */
+
+/* Drop cap on lead paragraph */
+.np-drop-cap::first-letter {
+  float: left;
+  font-family: var(--font-heading), Georgia, serif;
+  font-size: 4.2rem;
+  line-height: 0.75;
+  padding-right: 0.1em;
+  margin-top: 0.06em;
+  font-weight: 900;
+  color: var(--color-racing-red);
+}
+
+/* Sepia photo effect for newspaper illustrations */
+.np-photo {
+  filter: sepia(0.15) contrast(1.05);
+  transition: filter 0.3s ease;
+}
+
+.group:hover .np-photo,
+.np-photo:hover {
+  filter: sepia(0) contrast(1);
+}
+
+/* Countdown number punch-in */
+@keyframes np-count {
+  0% {
+    transform: scale(2.5);
     opacity: 0;
-    transform: translateY(20px);
   }
-  to {
+  20% {
+    transform: scale(0.95);
     opacity: 1;
-    transform: translateY(0);
+  }
+  30% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.95);
   }
 }
 
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+.np-count {
+  animation: np-count 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
 }

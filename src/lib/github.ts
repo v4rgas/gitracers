@@ -39,6 +39,7 @@ interface GraphQLCommitNode {
 
 interface GraphQLCommitResponse {
   repository: {
+    isPrivate: boolean;
     defaultBranchRef: {
       target: {
         history: {
@@ -53,6 +54,7 @@ interface GraphQLCommitResponse {
 const COMMITS_QUERY = `
   query ($owner: String!, $repo: String!, $first: Int!, $after: String) {
     repository(owner: $owner, name: $repo) {
+      isPrivate
       defaultBranchRef {
         target {
           ... on Commit {
@@ -82,11 +84,12 @@ export async function fetchCommits(
   token: string,
   owner: string,
   repo: string,
-  maxCommits = 500
-): Promise<CommitData[]> {
+  maxCommits = 5000
+): Promise<{ commits: CommitData[]; isPrivate: boolean }> {
   const octokit = createOctokit(token);
   const commits: CommitData[] = [];
   let cursor: string | null = null;
+  let isPrivate = false;
 
   while (commits.length < maxCommits) {
     const batchSize = Math.min(100, maxCommits - commits.length);
@@ -98,6 +101,7 @@ export async function fetchCommits(
       after: cursor,
     });
 
+    isPrivate = data.repository.isPrivate;
     const history: GraphQLCommitResponse["repository"]["defaultBranchRef"]["target"]["history"] = data.repository.defaultBranchRef.target.history;
 
     for (const node of history.nodes) {
@@ -130,5 +134,26 @@ export async function fetchCommits(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
   );
 
-  return commits;
+  return { commits, isPrivate };
+}
+
+const REPO_VISIBILITY_QUERY = `
+  query ($owner: String!, $repo: String!) {
+    repository(owner: $owner, name: $repo) {
+      isPrivate
+    }
+  }
+`;
+
+export async function fetchRepoVisibility(
+  token: string,
+  owner: string,
+  repo: string
+): Promise<boolean> {
+  const octokit = createOctokit(token);
+  const data = await octokit.graphql<{ repository: { isPrivate: boolean } }>(
+    REPO_VISIBILITY_QUERY,
+    { owner, repo }
+  );
+  return data.repository.isPrivate;
 }

@@ -42,9 +42,9 @@ export function TimingTower({
   const leaderScore = top10[0]?.currentScore ?? 0;
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col border-2 border-ink/15">
       {/* Header */}
-      <div className="mb-2 border-b-2 border-ink/15 pb-2">
+      <div className="border-b-2 border-ink/15 bg-paper/80 px-3 py-2.5">
         <div className="flex items-center gap-2">
           {!isFinished && (
             <span className="relative flex h-1.5 w-1.5">
@@ -52,7 +52,7 @@ export function TimingTower({
               <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-racing-red" />
             </span>
           )}
-          <p className="font-ui text-[9px] font-bold uppercase tracking-[0.3em] text-racing-red">
+          <p className="font-ui text-[11px] font-bold uppercase tracking-[0.3em] text-racing-red">
             {isFinished ? "Classification" : "Live Timing"}
           </p>
         </div>
@@ -66,7 +66,7 @@ export function TimingTower({
           return (
             <div
               key={c.login}
-              className={`flex items-center gap-1.5 border-l-2 py-[5px] pl-2 transition-colors ${
+              className={`flex items-center gap-1.5 border-l-2 py-[5px] pl-2 pr-2 transition-colors ${
                 POSITION_COLORS[i] ?? "border-l-transparent"
               } ${i === 0 ? "bg-paper/80" : ""} ${
                 i < top10.length - 1 ? "border-b border-b-rule/30" : ""
@@ -74,7 +74,7 @@ export function TimingTower({
             >
               {/* Position */}
               <span
-                className={`w-4 font-ui text-[11px] font-bold tabular-nums ${
+                className={`w-4 font-ui text-xs font-bold tabular-nums ${
                   RANK_TEXT_COLORS[i] ?? "text-ink-muted"
                 }`}
               >
@@ -93,7 +93,7 @@ export function TimingTower({
 
               {/* Name */}
               <span
-                className={`flex-1 truncate font-ui text-[11px] ${
+                className={`flex-1 truncate font-ui text-xs ${
                   i === 0
                     ? "font-bold text-ink"
                     : i < 3
@@ -105,7 +105,7 @@ export function TimingTower({
               </span>
 
               {/* Score / Gap */}
-              <span className="font-ui text-[10px] tabular-nums text-ink-muted">
+              <span className="font-ui text-[11px] tabular-nums text-ink-muted">
                 {i === 0
                   ? c.currentScore.toFixed(1)
                   : gap > 0
@@ -118,8 +118,8 @@ export function TimingTower({
       </div>
 
       {/* Footer */}
-      <div className="mt-2 border-t border-rule/40 pt-2">
-        <p className="font-ui text-[9px] uppercase tracking-wider text-ink-muted/60">
+      <div className="border-t border-rule/40 px-3 py-2">
+        <p className="font-ui text-[11px] uppercase tracking-wider text-ink-muted/60">
           {contributors.length} contributors
         </p>
       </div>
