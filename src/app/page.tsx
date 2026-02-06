@@ -314,7 +314,7 @@ export default async function Home() {
               </p>
               <div className="my-2 h-px bg-ink/15" />
               <p className="font-body text-sm leading-relaxed text-ink-light">
-                Up to <strong>500 commits</strong> analysed per race. Merge
+                Up to <strong>5,000 commits</strong> analysed per race. Merge
                 commits excluded.
               </p>
               <p className="mt-2 font-body text-sm italic text-ink-muted">
