@@ -44,7 +44,7 @@ export function RaceControls({
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-y-2">
         <div className="flex items-center gap-2">
           <button
             onClick={onPlayPause}
