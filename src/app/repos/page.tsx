@@ -82,6 +82,10 @@ export default function ReposPage() {
             <div className="h-px flex-1 bg-ink/15" />
           </div>
 
+          <p className="mb-4 font-body text-xs italic text-ink-muted">
+            Private repositories are never listed or published publicly.
+          </p>
+
           <Suspense fallback={<RepoListSkeleton />}>
             <RepoList />
           </Suspense>

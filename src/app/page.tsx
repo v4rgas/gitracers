@@ -405,7 +405,7 @@ export default async function Home() {
           </p>
           <p className="mt-1 font-body text-xs italic text-ink-muted/60">
             Powered by GitHub commit history &middot; All races generated in
-            real time
+            real time &middot; Private repositories are never listed or shared
           </p>
           <p className="mt-2 font-body text-xs text-ink-muted/60">
             Built with love by{" "}
