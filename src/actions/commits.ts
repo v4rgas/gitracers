@@ -46,14 +46,14 @@ export async function checkRace(
   | { exists: true; raceData: RaceData }
   | { exists: false; isPublicRepo: boolean }
 > {
-  const { session, githubUserId } = await getSession();
+  const { session, githubUsername } = await getSession();
   const supabase = getSupabase();
 
   // Simple select — check if race is cached
   const { data: existing } = await supabase
     .from("races")
     .select("id, commits")
-    .eq("github_user_id", githubUserId)
+    .eq("github_username", githubUsername)
     .eq("owner", owner)
     .eq("repo", repo)
     .single();
@@ -129,14 +129,14 @@ export async function createRace(
   repo: string,
   isPublished: boolean
 ): Promise<RaceData> {
-  const { session, githubUserId, githubUsername } = await getSession();
+  const { session, githubUsername } = await getSession();
   const supabase = getSupabase();
 
   // fetchCommits returns isPrivate from the same GraphQL query — no extra API call needed
   const { commits, isPrivate } = await fetchCommits(session.accessToken!, owner, repo);
 
   await supabase.from("races").insert({
-    github_user_id: githubUserId,
+    github_user_id: githubUsername,
     github_username: githubUsername,
     owner,
     repo,
