@@ -21,6 +21,7 @@ export async function fetchUserRepos(token: string): Promise<RepoInfo[]> {
     stars: r.stargazers_count ?? 0,
     language: r.language,
     updatedAt: r.updated_at ?? "",
+    isPrivate: r.private,
   }));
 }
 

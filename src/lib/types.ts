@@ -54,4 +54,5 @@ export interface RepoInfo {
   stars: number;
   language: string | null;
   updatedAt: string;
+  isPrivate: boolean;
 }

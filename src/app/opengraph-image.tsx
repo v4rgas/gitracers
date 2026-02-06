@@ -135,7 +135,7 @@ export default async function Image() {
                 color: "#8b8178",
               }}
             >
-              ★ ESTABLISHED 2025 ★
+              — ESTABLISHED 2026 —
             </span>
             <span
               style={{

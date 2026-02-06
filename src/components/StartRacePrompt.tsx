@@ -17,8 +17,17 @@ export function StartRacePrompt({
 }) {
   const [isPending, startTransition] = useTransition();
   const [isPublished, setIsPublished] = useState(isPublicRepo);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   function handleStart() {
+    if (!isPublicRepo && isPublished) {
+      setShowConfirm(true);
+      return;
+    }
+    doStart();
+  }
+
+  function doStart() {
     startTransition(async () => {
       const raceData = await createRace(owner, repo, isPublished);
       onRaceCreated(raceData);
@@ -114,6 +123,48 @@ export function StartRacePrompt({
           </div>
         </div>
       </div>
+
+      {/* Confirmation modal for publishing private repos */}
+      {showConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="mx-4 w-full max-w-md border-2 border-ink bg-cream p-[3px]">
+            <div className="border border-ink/50 px-8 py-8 text-center">
+              <p className="font-ui text-xs font-bold uppercase tracking-[0.25em] text-racing-red">
+                &#9888; Heads up
+              </p>
+              <div className="mx-auto my-3 h-px w-24 bg-ink/15" />
+              <h3 className="font-heading text-2xl font-black italic text-ink">
+                Are you sure?
+              </h3>
+              <p className="mt-3 font-body text-base text-ink-light">
+                This is a private repository. Publishing this race means{" "}
+                <span className="font-semibold text-ink">
+                  everyone will be able to see your repo&apos;s commit history
+                </span>
+                .
+              </p>
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+                <button
+                  onClick={() => setShowConfirm(false)}
+                  className="cursor-pointer border-2 border-ink/20 px-8 py-3 font-ui text-sm font-bold uppercase tracking-[0.2em] text-ink transition-all hover:border-ink/40"
+                >
+                  Go back
+                </button>
+                <button
+                  onClick={() => {
+                    setShowConfirm(false);
+                    doStart();
+                  }}
+                  disabled={isPending}
+                  className="cursor-pointer border-2 border-racing-red bg-racing-red px-8 py-3 font-ui text-sm font-bold uppercase tracking-[0.2em] text-cream transition-all hover:bg-transparent hover:text-racing-red disabled:opacity-50"
+                >
+                  {isPending ? "Loading commits\u2026" : "Publish anyway"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
