@@ -24,8 +24,18 @@ async function getSession() {
   const session = await auth();
   if (!session?.accessToken) throw new Error("Not authenticated");
   const githubUserId = session.user.id;
-  const githubUsername = session.user.login;
-  if (!githubUserId || !githubUsername) throw new Error("Missing user info");
+  if (!githubUserId) throw new Error("Missing user info");
+
+  // login might be missing from old JWTs created before the auth change —
+  // fall back to fetching it from GitHub so users don't have to re-login
+  let githubUsername = session.user.login;
+  if (!githubUsername) {
+    const { createOctokit } = await import("@/lib/github");
+    const octokit = createOctokit(session.accessToken);
+    const { data: user } = await octokit.users.getAuthenticated();
+    githubUsername = user.login;
+  }
+
   return { session, githubUserId, githubUsername };
 }
 
@@ -39,19 +49,24 @@ export async function checkRace(
   const { session, githubUserId } = await getSession();
   const supabase = getSupabase();
 
-  const ipHash = await getViewerIpHash();
+  // Simple select — check if race is cached
+  const { data: existing } = await supabase
+    .from("races")
+    .select("id, commits")
+    .eq("github_user_id", githubUserId)
+    .eq("owner", owner)
+    .eq("repo", repo)
+    .single();
 
-  // Atomic: fetch race + track unique view (1 IP = 1 view) in a single DB call
-  const { data: commits } = await supabase.rpc("fetch_race_with_view", {
-    uid: githubUserId,
-    race_owner: owner,
-    race_repo: repo,
-    viewer_ip_hash: ipHash,
-  });
+  if (existing) {
+    // Track unique view in the background (fire-and-forget)
+    const ipHash = await getViewerIpHash();
+    supabase
+      .from("race_views")
+      .upsert({ race_id: existing.id, ip_hash: ipHash }, { onConflict: "race_id,ip_hash", ignoreDuplicates: true })
+      .then(() => {});
 
-  if (commits) {
-    // Race is cached — no GitHub call needed
-    return { exists: true, raceData: buildRaceData(decompressCommits(commits as CompactCommits)) };
+    return { exists: true, raceData: buildRaceData(decompressCommits(existing.commits as CompactCommits)) };
   }
 
   // Race doesn't exist yet — only now check repo visibility
