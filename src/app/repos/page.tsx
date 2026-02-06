@@ -31,7 +31,7 @@ export default function ReposPage() {
               href="/"
               className="font-heading text-lg font-black italic tracking-tight text-ink transition-colors hover:text-racing-red"
             >
-              The Gran <span className="text-racing-red">Git Races</span>
+              The Grand <span className="text-racing-red">Git Races</span>
             </Link>
             <SignOutButton />
           </div>

@@ -72,7 +72,7 @@ export default async function Home() {
 
           <h1 className="text-center font-heading font-black italic leading-[0.88] tracking-tight">
             <span className="block text-[3.5rem] text-ink md:text-[5.5rem]">
-              The Gran
+              The Grand
             </span>
             <span className="block text-[4.5rem] text-racing-red md:text-[7.5rem]">
               Git Races

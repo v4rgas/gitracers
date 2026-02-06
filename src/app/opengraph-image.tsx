@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 import { generateTrack, getPointOnTrack, getTrackTangent } from "@/lib/track-generator";
 
 export const runtime = "nodejs";
-export const alt = "The Gran Git Races – Watch your contributors race";
+export const alt = "The Grand Git Races – Watch your contributors race";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -148,7 +148,7 @@ export default async function Image() {
                 marginTop: 8,
               }}
             >
-              The Gran Git Races
+              The Grand Git Races
             </span>
             <div
               style={{

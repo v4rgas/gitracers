@@ -89,7 +89,7 @@ export async function generateMetadata({
   params: Promise<{ owner: string; repo: string }>;
 }) {
   const { owner, repo } = await params;
-  return { title: `${owner}/${repo} \u2014 The Gran Git Races` };
+  return { title: `${owner}/${repo} \u2014 The Grand Git Races` };
 }
 
 export default async function RacePage({
