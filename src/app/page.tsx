@@ -129,7 +129,7 @@ export default async function Home() {
                     </span>
                   </>
                 );
-                return session ? (
+                return (
                   <Link
                     key={`dispatch-${owner}/${repo}`}
                     href={`/race/${owner}/${repo}`}
@@ -137,13 +137,6 @@ export default async function Home() {
                   >
                     {inner}
                   </Link>
-                ) : (
-                  <div
-                    key={`dispatch-${owner}/${repo}`}
-                    className="flex items-baseline gap-1"
-                  >
-                    {inner}
-                  </div>
                 );
               })}
             </div>
@@ -376,12 +369,12 @@ export default async function Home() {
                     <p className="font-ui text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-muted">
                       {view_count.toLocaleString()}{" "}
                       {view_count === 1 ? "view" : "views"}
-                      {session && <> &middot; View Race &rarr;</>}
+                      {" "}&middot; View Race &rarr;
                     </p>
                   </div>
                 </>
               );
-              return session ? (
+              return (
                 <Link
                   key={`programme-${owner}/${repo}`}
                   href={`/race/${owner}/${repo}`}
@@ -389,13 +382,6 @@ export default async function Home() {
                 >
                   {card}
                 </Link>
-              ) : (
-                <div
-                  key={`programme-${owner}/${repo}`}
-                  className="overflow-hidden border-2 border-ink/10"
-                >
-                  {card}
-                </div>
               );
             })}
           </div>

@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { checkRace } from "@/actions/commits";
+import { SignInButton } from "@/components/SignInButton";
 import Link from "next/link";
 import { RacePageClient } from "./client";
 
@@ -46,6 +47,30 @@ async function RaceLoader({ owner, repo }: { owner: string; repo: string }) {
         repo={repo}
         initialRaceData={result.raceData}
       />
+    );
+  }
+
+  if (result.needsAuth) {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center">
+        <div className="border-2 border-ink p-[3px]">
+          <div className="border border-ink/50 px-8 py-8 text-center">
+            <p className="font-ui text-xs font-bold uppercase tracking-[0.25em] text-ink-muted">
+              &#9733; Race Entry &#9733;
+            </p>
+            <div className="my-3 h-px bg-ink/15" />
+            <p className="font-heading text-xl italic text-ink">
+              Sign in to race this repository
+            </p>
+            <p className="mt-2 font-body text-sm text-ink-muted">
+              No published race exists for this repo yet.
+            </p>
+            <div className="mt-4">
+              <SignInButton />
+            </div>
+          </div>
+        </div>
+      </div>
     );
   }
 

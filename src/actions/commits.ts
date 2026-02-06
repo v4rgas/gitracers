@@ -44,34 +44,67 @@ export async function checkRace(
   repo: string
 ): Promise<
   | { exists: true; raceData: RaceData }
-  | { exists: false; isPublicRepo: boolean }
+  | { exists: false; isPublicRepo: boolean; needsAuth: boolean }
 > {
-  const { session, githubUsername } = await getSession();
+  const session = await auth();
   const supabase = getSupabase();
 
-  // Simple select — check if race is cached
-  const { data: existing } = await supabase
+  // If authenticated, check for user's own race first
+  if (session?.accessToken) {
+    let githubUsername = session.user.login;
+    if (!githubUsername) {
+      const { createOctokit } = await import("@/lib/github");
+      const octokit = createOctokit(session.accessToken);
+      const { data: user } = await octokit.users.getAuthenticated();
+      githubUsername = user.login;
+    }
+
+    const { data: own } = await supabase
+      .from("races")
+      .select("id, commits")
+      .eq("github_username", githubUsername)
+      .eq("owner", owner)
+      .eq("repo", repo)
+      .single();
+
+    if (own) {
+      const ipHash = await getViewerIpHash();
+      supabase
+        .from("race_views")
+        .upsert({ race_id: own.id, ip_hash: ipHash }, { onConflict: "race_id,ip_hash", ignoreDuplicates: true })
+        .then(() => {});
+
+      return { exists: true, raceData: buildRaceData(decompressCommits(own.commits as CompactCommits)) };
+    }
+  }
+
+  // Check for any published race for this repo (works for anyone)
+  const { data: published } = await supabase
     .from("races")
     .select("id, commits")
-    .eq("github_username", githubUsername)
     .eq("owner", owner)
     .eq("repo", repo)
+    .eq("is_published", true)
+    .limit(1)
     .single();
 
-  if (existing) {
-    // Track unique view in the background (fire-and-forget)
+  if (published) {
     const ipHash = await getViewerIpHash();
     supabase
       .from("race_views")
-      .upsert({ race_id: existing.id, ip_hash: ipHash }, { onConflict: "race_id,ip_hash", ignoreDuplicates: true })
+      .upsert({ race_id: published.id, ip_hash: ipHash }, { onConflict: "race_id,ip_hash", ignoreDuplicates: true })
       .then(() => {});
 
-    return { exists: true, raceData: buildRaceData(decompressCommits(existing.commits as CompactCommits)) };
+    return { exists: true, raceData: buildRaceData(decompressCommits(published.commits as CompactCommits)) };
   }
 
-  // Race doesn't exist yet — only now check repo visibility
-  const isPrivate = await fetchRepoVisibility(session.accessToken!, owner, repo);
-  return { exists: false, isPublicRepo: !isPrivate };
+  // No race found — need auth to create one
+  if (!session?.accessToken) {
+    return { exists: false, isPublicRepo: false, needsAuth: true };
+  }
+
+  const isPrivate = await fetchRepoVisibility(session.accessToken, owner, repo);
+  return { exists: false, isPublicRepo: !isPrivate, needsAuth: false };
 }
 
 export async function getPublicRaces(): Promise<{ owner: string; repo: string }[]> {
