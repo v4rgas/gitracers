@@ -24,7 +24,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.accessToken = (token as any).accessToken as string | undefined;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       session.user.login = (token as any).githubLogin as string | undefined;
-      session.user.id = token.sub;
+      session.user.id = token.sub!;
       return session;
     },
   },
