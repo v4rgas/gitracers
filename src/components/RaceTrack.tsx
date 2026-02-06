@@ -19,9 +19,10 @@ interface RaceTrackProps {
   totalFrames?: number;
 }
 
-const TRACK_WIDTH = 56;
-const AVATAR_RADIUS = 16;
+const BASE_TRACK_WIDTH = 56;
+const BASE_AVATAR_RADIUS = 16;
 const LANE_SPREAD = 0.55;
+const REFERENCE_WIDTH = 800;
 
 // How fast display positions catch up to targets.
 const LERP_SPEED = 4;
@@ -55,25 +56,28 @@ function traceTrackPath(ctx: CanvasRenderingContext2D, track: TrackData) {
   ctx.closePath();
 }
 
-function drawBackground(ctx: CanvasRenderingContext2D, w: number, h: number) {
+function drawBackground(ctx: CanvasRenderingContext2D, w: number, h: number, scale: number) {
   // Parchment base
   ctx.fillStyle = "#f5f0e8";
   ctx.fillRect(0, 0, w, h);
 
   // Subtle dot grid — technical drawing feel
+  const gridSpacing = 16 * scale;
   ctx.fillStyle = "rgba(180, 168, 146, 0.14)";
-  for (let x = 0; x < w; x += 16) {
-    for (let y = 0; y < h; y += 16) {
+  for (let x = 0; x < w; x += gridSpacing) {
+    for (let y = 0; y < h; y += gridSpacing) {
       ctx.fillRect(x, y, 1, 1);
     }
   }
 }
 
-function drawTrackSurface(ctx: CanvasRenderingContext2D, track: TrackData) {
+function drawTrackSurface(ctx: CanvasRenderingContext2D, track: TrackData, scale: number) {
+  const trackWidth = BASE_TRACK_WIDTH * scale;
+
   // Grass/terrain surrounding the track
   traceTrackPath(ctx, track);
   ctx.strokeStyle = "#dde4ce";
-  ctx.lineWidth = TRACK_WIDTH + 28;
+  ctx.lineWidth = trackWidth + 28 * scale;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.stroke();
@@ -81,7 +85,7 @@ function drawTrackSurface(ctx: CanvasRenderingContext2D, track: TrackData) {
   // Track border/outline
   traceTrackPath(ctx, track);
   ctx.strokeStyle = "#c4b89a";
-  ctx.lineWidth = TRACK_WIDTH + 6;
+  ctx.lineWidth = trackWidth + 6 * scale;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.stroke();
@@ -89,7 +93,7 @@ function drawTrackSurface(ctx: CanvasRenderingContext2D, track: TrackData) {
   // Track surface (asphalt)
   traceTrackPath(ctx, track);
   ctx.strokeStyle = "#2a2520";
-  ctx.lineWidth = TRACK_WIDTH;
+  ctx.lineWidth = trackWidth;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.stroke();
@@ -98,7 +102,7 @@ function drawTrackSurface(ctx: CanvasRenderingContext2D, track: TrackData) {
   traceTrackPath(ctx, track);
   ctx.strokeStyle = "#4a4540";
   ctx.lineWidth = 1;
-  ctx.setLineDash([8, 8]);
+  ctx.setLineDash([8 * scale, 8 * scale]);
   ctx.stroke();
   ctx.setLineDash([]);
 
@@ -107,14 +111,14 @@ function drawTrackSurface(ctx: CanvasRenderingContext2D, track: TrackData) {
   const { tx, ty } = getTrackTangent(track, 0);
   const nx = -ty;
   const ny = tx;
-  const halfW = TRACK_WIDTH / 2;
+  const halfW = trackWidth / 2;
 
   ctx.beginPath();
   ctx.moveTo(startP.x + nx * halfW, startP.y + ny * halfW);
   ctx.lineTo(startP.x - nx * halfW, startP.y - ny * halfW);
   ctx.strokeStyle = "#c62828";
-  ctx.lineWidth = 3;
-  ctx.setLineDash([4, 4]);
+  ctx.lineWidth = 3 * scale;
+  ctx.setLineDash([4 * scale, 4 * scale]);
   ctx.stroke();
   ctx.setLineDash([]);
 }
@@ -124,14 +128,15 @@ function drawRacer(
   x: number,
   y: number,
   contributor: Contributor,
-  rank: number
+  rank: number,
+  scale: number
 ) {
   const img = getImage(contributor.avatarUrl);
-  const r = AVATAR_RADIUS;
+  const r = BASE_AVATAR_RADIUS * scale;
 
   // Shadow
   ctx.beginPath();
-  ctx.arc(x, y + 2, r + 2, 0, Math.PI * 2);
+  ctx.arc(x, y + 2 * scale, r + 2 * scale, 0, Math.PI * 2);
   ctx.fillStyle = "rgba(42, 37, 32, 0.25)";
   ctx.fill();
 
@@ -157,22 +162,23 @@ function drawRacer(
 
   // Medal ring
   ctx.beginPath();
-  ctx.arc(x, y, r + 1, 0, Math.PI * 2);
+  ctx.arc(x, y, r + 1 * scale, 0, Math.PI * 2);
   ctx.strokeStyle =
     rank === 0 ? "#b8860b" : rank === 1 ? "#71706e" : rank === 2 ? "#8b6914" : "#a09890";
-  ctx.lineWidth = rank < 3 ? 2.5 : 1.5;
+  ctx.lineWidth = (rank < 3 ? 2.5 : 1.5) * scale;
   ctx.stroke();
 
   // Username label with outline for readability
-  ctx.font = "bold 11px sans-serif";
+  const labelSize = Math.round(11 * scale);
+  ctx.font = `bold ${labelSize}px sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
   ctx.strokeStyle = "#f5f0e8";
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 3 * scale;
   ctx.lineJoin = "round";
-  ctx.strokeText(contributor.login, x, y + r + 4);
+  ctx.strokeText(contributor.login, x, y + r + 4 * scale);
   ctx.fillStyle = "#1a1a1a";
-  ctx.fillText(contributor.login, x, y + r + 4);
+  ctx.fillText(contributor.login, x, y + r + 4 * scale);
 }
 
 function drawHUD(
@@ -181,9 +187,10 @@ function drawHUD(
   h: number,
   repoName: string,
   frame: number,
-  total: number
+  total: number,
+  scale: number
 ) {
-  const pad = 14;
+  const pad = 14 * scale;
   const progress = total > 1 ? frame / (total - 1) : 0;
 
   // ── Top-left: branding + repo name ──
@@ -192,28 +199,28 @@ function drawHUD(
 
   // "GITRACERS" in racing red
   ctx.fillStyle = "#c62828";
-  ctx.font = "bold 10px sans-serif";
+  ctx.font = `bold ${Math.round(10 * scale)}px sans-serif`;
   ctx.fillText("GITRACERS", pad, pad);
 
   // repo name
   ctx.fillStyle = "#1a1a1a";
-  ctx.font = "bold 13px sans-serif";
-  ctx.fillText(repoName, pad, pad + 14);
+  ctx.font = `bold ${Math.round(13 * scale)}px sans-serif`;
+  ctx.fillText(repoName, pad, pad + 14 * scale);
 
   // ── Top-right: commit counter ──
   ctx.textAlign = "right";
   ctx.textBaseline = "top";
   ctx.fillStyle = "#8b8178";
-  ctx.font = "11px sans-serif";
+  ctx.font = `${Math.round(11 * scale)}px sans-serif`;
   ctx.fillText(`${frame + 1} / ${total} commits`, w - pad, pad);
 
   // Percentage
   ctx.fillStyle = "#c62828";
-  ctx.font = "bold 11px sans-serif";
-  ctx.fillText(`${Math.round(progress * 100)}%`, w - pad, pad + 15);
+  ctx.font = `bold ${Math.round(11 * scale)}px sans-serif`;
+  ctx.fillText(`${Math.round(progress * 100)}%`, w - pad, pad + 15 * scale);
 
   // ── Bottom: progress bar ──
-  const barH = 3;
+  const barH = 3 * scale;
   const barY = h - pad;
   const barW = w - pad * 2;
 
@@ -262,12 +269,15 @@ export function RaceTrack({ raceData, targetPositions, seed, resetKey, onCanvasR
 
   const draw = useCallback(
     (ctx: CanvasRenderingContext2D, w: number, h: number, track: TrackData) => {
-      drawBackground(ctx, w, h);
+      const scale = Math.min(1, Math.max(0.45, w / REFERENCE_WIDTH));
+
+      drawBackground(ctx, w, h, scale);
 
       if (raceData.frames.length === 0) return;
 
-      drawTrackSurface(ctx, track);
+      drawTrackSurface(ctx, track, scale);
 
+      const trackWidth = BASE_TRACK_WIDTH * scale;
       const opacities = displayOpacities.current;
       const lanes = displayLanes.current;
       const positions = displayPositions.current;
@@ -310,21 +320,21 @@ export function RaceTrack({ raceData, targetPositions, seed, resetKey, onCanvasR
 
         const laneOffset =
           visibleCount > 1
-            ? ((racer.lane / (Math.max(visibleCount, 2) - 1)) * 2 - 1) * (TRACK_WIDTH / 2) * LANE_SPREAD
+            ? ((racer.lane / (Math.max(visibleCount, 2) - 1)) * 2 - 1) * (trackWidth / 2) * LANE_SPREAD
             : 0;
 
         const rank = rankMap.get(racer.login) ?? 0;
 
         ctx.save();
         ctx.globalAlpha = racer.opacity;
-        drawRacer(ctx, p.x + nx * laneOffset, p.y + ny * laneOffset, racer.contributor, rank);
+        drawRacer(ctx, p.x + nx * laneOffset, p.y + ny * laneOffset, racer.contributor, rank, scale);
         ctx.restore();
       }
 
       // HUD overlay — drawn last so it's always on top
       const { frame, total } = frameInfoRef.current;
       if (total > 0) {
-        drawHUD(ctx, w, h, seed, frame, total);
+        drawHUD(ctx, w, h, seed, frame, total, scale);
       }
     },
     [raceData, seed]

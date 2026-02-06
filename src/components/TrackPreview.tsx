@@ -8,7 +8,8 @@ import {
   type TrackData,
 } from "@/lib/track-generator";
 
-const TRACK_WIDTH = 16;
+const BASE_TRACK_WIDTH = 16;
+const REFERENCE_WIDTH = 500;
 
 /** Local seeded PRNG for decorations */
 function mulberry32(seed: number) {
@@ -44,13 +45,14 @@ function drawBackground(
   ctx: CanvasRenderingContext2D,
   w: number,
   h: number,
-  rand: () => number
+  rand: () => number,
+  scale: number
 ) {
   ctx.fillStyle = "#ebe5d8";
   ctx.fillRect(0, 0, w, h);
 
   // Diagonal hatching (NW → SE)
-  const sp = 5;
+  const sp = 5 * scale;
   ctx.strokeStyle = "rgba(160, 148, 126, 0.09)";
   ctx.lineWidth = 0.5;
   ctx.beginPath();
@@ -75,7 +77,7 @@ function drawBackground(
   const cx = w / 2;
   const cy = h / 2;
   for (let i = 0; i < 8; i++) {
-    const r = 25 + i * 22 + rand() * 20;
+    const r = (25 + i * 22 + rand() * 20) * scale;
     ctx.beginPath();
     ctx.arc(
       cx + (rand() - 0.5) * w * 0.35,
@@ -89,11 +91,13 @@ function drawBackground(
 }
 
 /* ── Layers 2-4: Terrain zones around & inside track ── */
-function drawTerrainZones(ctx: CanvasRenderingContext2D, track: TrackData) {
+function drawTerrainZones(ctx: CanvasRenderingContext2D, track: TrackData, scale: number) {
+  const trackWidth = BASE_TRACK_WIDTH * scale;
+
   // Wide outer terrain / runoff
   traceTrackPath(ctx, track);
   ctx.strokeStyle = "rgba(210, 200, 175, 0.3)";
-  ctx.lineWidth = TRACK_WIDTH + 50;
+  ctx.lineWidth = trackWidth + 50 * scale;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.stroke();
@@ -101,7 +105,7 @@ function drawTerrainZones(ctx: CanvasRenderingContext2D, track: TrackData) {
   // Outer grass band
   traceTrackPath(ctx, track);
   ctx.strokeStyle = "#d3dcc6";
-  ctx.lineWidth = TRACK_WIDTH + 30;
+  ctx.lineWidth = trackWidth + 30 * scale;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.stroke();
@@ -109,7 +113,7 @@ function drawTerrainZones(ctx: CanvasRenderingContext2D, track: TrackData) {
   // Inner grass band (darker)
   traceTrackPath(ctx, track);
   ctx.strokeStyle = "#c8d4b8";
-  ctx.lineWidth = TRACK_WIDTH + 16;
+  ctx.lineWidth = trackWidth + 16 * scale;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.stroke();
@@ -124,8 +128,10 @@ function drawTerrainZones(ctx: CanvasRenderingContext2D, track: TrackData) {
 function drawGrassStipple(
   ctx: CanvasRenderingContext2D,
   track: TrackData,
-  rand: () => number
+  rand: () => number,
+  scale: number
 ) {
+  const trackWidth = BASE_TRACK_WIDTH * scale;
   ctx.save();
   ctx.lineWidth = 0.5;
 
@@ -139,10 +145,10 @@ function drawGrassStipple(
 
     for (let j = 0; j < 4; j++) {
       const side = rand() > 0.5 ? 1 : -1;
-      const dist = TRACK_WIDTH / 2 + 5 + rand() * 20;
-      const sx = p.x + nx * dist * side + (rand() - 0.5) * 4;
-      const sy = p.y + ny * dist * side + (rand() - 0.5) * 4;
-      const len = 1 + rand() * 2.5;
+      const dist = trackWidth / 2 + 5 * scale + rand() * 20 * scale;
+      const sx = p.x + nx * dist * side + (rand() - 0.5) * 4 * scale;
+      const sy = p.y + ny * dist * side + (rand() - 0.5) * 4 * scale;
+      const len = (1 + rand() * 2.5) * scale;
 
       ctx.strokeStyle = `rgba(110, 130, 90, ${0.1 + rand() * 0.1})`;
       ctx.beginPath();
@@ -155,11 +161,13 @@ function drawGrassStipple(
 }
 
 /* ── Layers 6-8: Track surface ── */
-function drawTrackSurface(ctx: CanvasRenderingContext2D, track: TrackData) {
+function drawTrackSurface(ctx: CanvasRenderingContext2D, track: TrackData, scale: number) {
+  const trackWidth = BASE_TRACK_WIDTH * scale;
+
   // Gravel/border
   traceTrackPath(ctx, track);
   ctx.strokeStyle = "#c4b89a";
-  ctx.lineWidth = TRACK_WIDTH + 6;
+  ctx.lineWidth = trackWidth + 6 * scale;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.stroke();
@@ -167,7 +175,7 @@ function drawTrackSurface(ctx: CanvasRenderingContext2D, track: TrackData) {
   // Track edge (white line)
   traceTrackPath(ctx, track);
   ctx.strokeStyle = "#e0d8c8";
-  ctx.lineWidth = TRACK_WIDTH + 2;
+  ctx.lineWidth = trackWidth + 2 * scale;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.stroke();
@@ -175,7 +183,7 @@ function drawTrackSurface(ctx: CanvasRenderingContext2D, track: TrackData) {
   // Asphalt
   traceTrackPath(ctx, track);
   ctx.strokeStyle = "#2a2520";
-  ctx.lineWidth = TRACK_WIDTH;
+  ctx.lineWidth = trackWidth;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.stroke();
@@ -184,13 +192,14 @@ function drawTrackSurface(ctx: CanvasRenderingContext2D, track: TrackData) {
   traceTrackPath(ctx, track);
   ctx.strokeStyle = "#4a4540";
   ctx.lineWidth = 1;
-  ctx.setLineDash([8, 8]);
+  ctx.setLineDash([8 * scale, 8 * scale]);
   ctx.stroke();
   ctx.setLineDash([]);
 }
 
 /* ── Kerbs at high-curvature points ── */
-function drawKerbs(ctx: CanvasRenderingContext2D, track: TrackData) {
+function drawKerbs(ctx: CanvasRenderingContext2D, track: TrackData, scale: number) {
+  const trackWidth = BASE_TRACK_WIDTH * scale;
   ctx.save();
   const samples = 120;
   for (let i = 0; i < samples; i++) {
@@ -210,14 +219,14 @@ function drawKerbs(ctx: CanvasRenderingContext2D, track: TrackData) {
       const { tx, ty } = getTrackTangent(track, t);
       const nx = -ty;
       const ny = tx;
-      const edge = TRACK_WIDTH / 2 + 1;
-      const kLen = 2.5;
+      const edge = trackWidth / 2 + 1 * scale;
+      const kLen = 2.5 * scale;
 
       ctx.strokeStyle =
         i % 2 === 0
           ? "rgba(198, 40, 40, 0.5)"
           : "rgba(240, 235, 225, 0.6)";
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 1.5 * scale;
 
       ctx.beginPath();
       ctx.moveTo(pCurr.x + nx * edge, pCurr.y + ny * edge);
@@ -240,35 +249,36 @@ function drawKerbs(ctx: CanvasRenderingContext2D, track: TrackData) {
 }
 
 /* ── Start/finish line ── */
-function drawStartFinish(ctx: CanvasRenderingContext2D, track: TrackData) {
+function drawStartFinish(ctx: CanvasRenderingContext2D, track: TrackData, scale: number) {
+  const trackWidth = BASE_TRACK_WIDTH * scale;
   const startP = getPointOnTrack(track, 0);
   const { tx, ty } = getTrackTangent(track, 0);
   const nx = -ty;
   const ny = tx;
-  const halfW = TRACK_WIDTH / 2;
+  const halfW = trackWidth / 2;
 
   // Checker stripe
   ctx.beginPath();
   ctx.moveTo(startP.x + nx * halfW, startP.y + ny * halfW);
   ctx.lineTo(startP.x - nx * halfW, startP.y - ny * halfW);
   ctx.strokeStyle = "#ffffff";
-  ctx.lineWidth = 3;
-  ctx.setLineDash([3, 3]);
+  ctx.lineWidth = 3 * scale;
+  ctx.setLineDash([3 * scale, 3 * scale]);
   ctx.stroke();
   ctx.setLineDash([]);
 
   // Red accent line outside track
   ctx.beginPath();
   ctx.moveTo(
-    startP.x + nx * (halfW + 5),
-    startP.y + ny * (halfW + 5)
+    startP.x + nx * (halfW + 5 * scale),
+    startP.y + ny * (halfW + 5 * scale)
   );
   ctx.lineTo(
-    startP.x - nx * (halfW + 5),
-    startP.y - ny * (halfW + 5)
+    startP.x - nx * (halfW + 5 * scale),
+    startP.y - ny * (halfW + 5 * scale)
   );
   ctx.strokeStyle = "#c62828";
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 2 * scale;
   ctx.stroke();
 }
 
@@ -277,8 +287,10 @@ function drawCornerLabels(
   ctx: CanvasRenderingContext2D,
   track: TrackData,
   w: number,
-  h: number
+  h: number,
+  scale: number
 ) {
+  const trackWidth = BASE_TRACK_WIDTH * scale;
   const corners: {
     t: number;
     x: number;
@@ -314,18 +326,19 @@ function drawCornerLabels(
   }
 
   ctx.save();
-  ctx.font = "bold 7px sans-serif";
+  ctx.font = `bold ${Math.round(7 * scale)}px sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = "rgba(140, 128, 108, 0.45)";
 
   corners.slice(0, 8).forEach((c, i) => {
-    const labelDist = TRACK_WIDTH / 2 + 22;
+    const labelDist = trackWidth / 2 + 22 * scale;
     let lx = c.x + c.nx * labelDist;
     let ly = c.y + c.ny * labelDist;
 
     // Flip to opposite side if label would clip the canvas edge
-    if (lx < 14 || lx > w - 14 || ly < 12 || ly > h - 12) {
+    const margin = 14 * scale;
+    if (lx < margin || lx > w - margin || ly < margin || ly > h - margin) {
       lx = c.x - c.nx * labelDist;
       ly = c.y - c.ny * labelDist;
     }
@@ -336,10 +349,11 @@ function drawCornerLabels(
 }
 
 /* ── Compass rose ── */
-function drawCompass(ctx: CanvasRenderingContext2D, w: number, h: number) {
-  const cx = w - 20;
-  const cy = h - 20;
-  const r = 7;
+function drawCompass(ctx: CanvasRenderingContext2D, w: number, h: number, scale: number) {
+  const offset = 20 * scale;
+  const cx = w - offset;
+  const cy = h - offset;
+  const r = 7 * scale;
 
   ctx.save();
   ctx.strokeStyle = "rgba(140, 128, 108, 0.35)";
@@ -352,35 +366,37 @@ function drawCompass(ctx: CanvasRenderingContext2D, w: number, h: number) {
 
   // N arrow
   ctx.beginPath();
-  ctx.moveTo(cx, cy - r + 1);
-  ctx.lineTo(cx - 2, cy - 1);
-  ctx.lineTo(cx + 2, cy - 1);
+  ctx.moveTo(cx, cy - r + 1 * scale);
+  ctx.lineTo(cx - 2 * scale, cy - 1 * scale);
+  ctx.lineTo(cx + 2 * scale, cy - 1 * scale);
   ctx.closePath();
   ctx.fill();
 
   // Cross lines
   ctx.beginPath();
-  ctx.moveTo(cx, cy - r + 2);
-  ctx.lineTo(cx, cy + r - 2);
-  ctx.moveTo(cx - r + 2, cy);
-  ctx.lineTo(cx + r - 2, cy);
+  ctx.moveTo(cx, cy - r + 2 * scale);
+  ctx.lineTo(cx, cy + r - 2 * scale);
+  ctx.moveTo(cx - r + 2 * scale, cy);
+  ctx.lineTo(cx + r - 2 * scale, cy);
   ctx.stroke();
 
-  ctx.font = "bold 5px sans-serif";
+  ctx.font = `bold ${Math.round(5 * scale)}px sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "bottom";
-  ctx.fillText("N", cx, cy - r - 1);
+  ctx.fillText("N", cx, cy - r - 1 * scale);
   ctx.restore();
 }
 
 /* ── Border frame (technical illustration feel) ── */
-function drawFrame(ctx: CanvasRenderingContext2D, w: number, h: number) {
+function drawFrame(ctx: CanvasRenderingContext2D, w: number, h: number, scale: number) {
   ctx.save();
+  const o1 = 3 * scale;
+  const o2 = 5 * scale;
   ctx.strokeStyle = "rgba(140, 128, 108, 0.2)";
   ctx.lineWidth = 1;
-  ctx.strokeRect(3, 3, w - 6, h - 6);
+  ctx.strokeRect(o1, o1, w - o1 * 2, h - o1 * 2);
   ctx.strokeStyle = "rgba(140, 128, 108, 0.08)";
-  ctx.strokeRect(5, 5, w - 10, h - 10);
+  ctx.strokeRect(o2, o2, w - o2 * 2, h - o2 * 2);
   ctx.restore();
 }
 
@@ -395,6 +411,7 @@ function paint(canvas: HTMLCanvasElement, seed: string) {
   const h = canvas.height / dpr;
   if (w === 0 || h === 0) return;
 
+  const scale = Math.min(1, Math.max(0.5, w / REFERENCE_WIDTH));
   const track = generateTrack(seed, w / 2, h / 2, w, h);
   const rand = mulberry32(hashStr(seed) + 12345);
 
@@ -402,15 +419,15 @@ function paint(canvas: HTMLCanvasElement, seed: string) {
   ctx.save();
   ctx.scale(dpr, dpr);
 
-  drawBackground(ctx, w, h, rand);
-  drawTerrainZones(ctx, track);
-  drawGrassStipple(ctx, track, rand);
-  drawTrackSurface(ctx, track);
-  drawKerbs(ctx, track);
-  drawStartFinish(ctx, track);
-  drawCornerLabels(ctx, track, w, h);
-  drawCompass(ctx, w, h);
-  drawFrame(ctx, w, h);
+  drawBackground(ctx, w, h, rand, scale);
+  drawTerrainZones(ctx, track, scale);
+  drawGrassStipple(ctx, track, rand, scale);
+  drawTrackSurface(ctx, track, scale);
+  drawKerbs(ctx, track, scale);
+  drawStartFinish(ctx, track, scale);
+  drawCornerLabels(ctx, track, w, h, scale);
+  drawCompass(ctx, w, h, scale);
+  drawFrame(ctx, w, h, scale);
 
   ctx.restore();
 }
