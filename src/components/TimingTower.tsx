@@ -83,13 +83,17 @@ export function TimingTower({
 
               {/* Avatar */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={c.avatarUrl}
-                alt=""
-                width={18}
-                height={18}
-                className="rounded-full border border-rule/50"
-              />
+              {c.avatarUrl ? (
+                <img
+                  src={c.avatarUrl}
+                  alt=""
+                  width={18}
+                  height={18}
+                  className="rounded-full border border-rule/50"
+                />
+              ) : (
+                <span className="inline-block h-[18px] w-[18px] rounded-full border border-rule/50 bg-ink/10" />
+              )}
 
               {/* Name */}
               <span
