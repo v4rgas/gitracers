@@ -350,6 +350,9 @@ export default async function Home() {
             <h3 className="font-heading text-xl font-black italic tracking-tight text-ink md:text-2xl">
               {"Today\u2019s Race Programme"}
             </h3>
+            <span className="font-ui text-[11px] font-medium uppercase tracking-[0.2em] text-ink-muted">
+              Public repositories only
+            </span>
             <div className="flex-1 border-t-2 border-ink/15" />
           </div>
 
@@ -403,6 +406,17 @@ export default async function Home() {
           <p className="mt-1 font-body text-xs italic text-ink-muted/60">
             Powered by GitHub commit history &middot; All races generated in
             real time
+          </p>
+          <p className="mt-2 font-body text-xs text-ink-muted/60">
+            Built with love by{" "}
+            <a
+              href="https://v4rgas.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline transition-colors hover:text-racing-red"
+            >
+              v4rgas
+            </a>
           </p>
         </div>
       </footer>
