@@ -159,7 +159,7 @@ export default async function Image({
                 color: "#1a1a1a",
               }}
             >
-              ★ THE GRAND GIT RACES ★
+              * THE GRAND GIT RACES *
             </span>
             <div
               style={{

@@ -20,6 +20,7 @@ const barlow = Barlow_Condensed({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://gitracers.v4rgas.com"),
   title: "GitRacers",
   description: "Watch your contributors race based on commit activity",
 };
