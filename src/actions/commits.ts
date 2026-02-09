@@ -131,15 +131,38 @@ export async function getPublicRaces(): Promise<{ owner: string; repo: string }[
   return unique;
 }
 
-export async function getMostViewedRaces(limit = 10): Promise<{ owner: string; repo: string; view_count: number }[]> {
+export async function getLatestRaces(): Promise<{ owner: string; repo: string; view_count: number }[]> {
+  const supabase = getSupabase();
+
+  const { data, error } = await supabase
+    .from("races")
+    .select("owner, repo, view_count, created_at")
+    .eq("is_published", true)
+    .order("created_at", { ascending: false });
+
+  if (error || !data) return [];
+
+  const seen = new Set<string>();
+  const unique: { owner: string; repo: string; view_count: number }[] = [];
+  for (const row of data) {
+    const key = `${row.owner}/${row.repo}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push({ owner: row.owner, repo: row.repo, view_count: row.view_count });
+    }
+  }
+
+  return unique;
+}
+
+export async function getMostViewedRaces(): Promise<{ owner: string; repo: string; view_count: number }[]> {
   const supabase = getSupabase();
 
   const { data, error } = await supabase
     .from("races")
     .select("owner, repo, view_count")
     .eq("is_published", true)
-    .order("view_count", { ascending: false })
-    .limit(limit);
+    .order("view_count", { ascending: false });
 
   if (error || !data) return [];
 

@@ -1,14 +1,15 @@
 import { auth } from "@/auth";
-import { getMostViewedRaces } from "@/actions/commits";
+import { getLatestRaces, getMostViewedRaces } from "@/actions/commits";
 import { SignInButton } from "@/components/SignInButton";
 import { TrackPreview } from "@/components/TrackPreview";
 import { RepoInput } from "@/components/RepoInput";
 import Link from "next/link";
 
 export default async function Home() {
-  const [session, topRaces] = await Promise.all([
+  const [session, topRaces, latestRaces] = await Promise.all([
     auth(),
     getMostViewedRaces(),
+    getLatestRaces(),
   ]);
 
   const today = new Date();
@@ -110,9 +111,9 @@ export default async function Home() {
             <div className="h-px flex-1 bg-ink/15" />
           </div>
 
-          {topRaces.length > 0 ? (
+          {latestRaces.length > 0 ? (
             <div className="space-y-3">
-              {topRaces.slice(0, 6).map(({ owner, repo, view_count }) => {
+              {latestRaces.map(({ owner, repo, view_count }) => {
                 const inner = (
                   <>
                     <span className="font-body text-sm text-racing-red">
