@@ -138,21 +138,12 @@ export async function getLatestRaces(): Promise<{ owner: string; repo: string; v
     .from("races")
     .select("owner, repo, view_count, created_at")
     .eq("is_published", true)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(5);
 
   if (error || !data) return [];
 
-  const seen = new Set<string>();
-  const unique: { owner: string; repo: string; view_count: number }[] = [];
-  for (const row of data) {
-    const key = `${row.owner}/${row.repo}`;
-    if (!seen.has(key)) {
-      seen.add(key);
-      unique.push({ owner: row.owner, repo: row.repo, view_count: row.view_count });
-    }
-  }
-
-  return unique;
+  return data.map(({ owner, repo, view_count }) => ({ owner, repo, view_count }));
 }
 
 export async function getMostViewedRaces(): Promise<{ owner: string; repo: string; view_count: number }[]> {
